@@ -1,0 +1,11 @@
+#root {
+  min-height: 100vh;
+  background: #f5f6fb;
+  color: #0f172a;
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
