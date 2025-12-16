@@ -46,7 +46,7 @@ const UploadPage = () => {
         {file ? (
           <span>{file.name}</span>
         ) : (
-          <span>点击或拖拽图片至此（最大10MB）</span>
+          <span>点击或拖拽图片至此（最大10MB，支持 JPEG, PNG, GIF, BMP, TIFF, WebP）</span>
         )}
       </label>
 

@@ -6,8 +6,13 @@ export const fetchTags = async () => {
   return data
 }
 
-export const createTag = async (payload: { name: string; color?: string }) => {
+export const createTag = async (payload: { name: string; color: string }) => {
   const { data } = await api.post<Tag>('/tags', payload)
+  return data
+}
+
+export const updateTagColor = async (tagId: number, color: string) => {
+  const { data } = await api.put<Tag>(`/tags/${tagId}/color`, { color })
   return data
 }
 

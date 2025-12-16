@@ -14,13 +14,37 @@
   align-items: center;
 }
 
+.detail-card header .header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
 .detail-card header button {
   border: none;
-  background: #ef4444;
-  color: #fff;
   padding: 0.5rem 1rem;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.detail-card header .btn-edit {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.detail-card header .btn-edit:hover {
+  background: #2563eb;
+}
+
+.detail-card header .btn-delete {
+  background: #ef4444;
+  color: #fff;
+}
+
+.detail-card header .btn-delete:hover {
+  background: #dc2626;
 }
 
 .detail-content {
@@ -54,16 +78,137 @@
   margin-top: 0.35rem;
 }
 
+.tag-message {
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  background: #dcfce7;
+  color: #15803d;
+}
+
 .tag-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tag-item {
+  display: flex;
+  align-items: center;
+}
+
+.tag-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.tag-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 .tag-pill {
   padding: 0.3rem 0.6rem;
   border-radius: 999px;
   font-size: 0.85rem;
+  display: inline-block;
+}
+
+.tag-edit-input {
+  flex: 1;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.btn-edit-small,
+.btn-delete-small,
+.btn-save-small,
+.btn-cancel-small {
+  padding: 0.3rem 0.6rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-edit-small {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.btn-edit-small:hover {
+  background: #2563eb;
+}
+
+.btn-delete-small {
+  background: #ef4444;
+  color: #fff;
+}
+
+.btn-delete-small:hover {
+  background: #dc2626;
+}
+
+.btn-save-small {
+  background: #22c55e;
+  color: #fff;
+}
+
+.btn-save-small:hover {
+  background: #16a34a;
+}
+
+.btn-cancel-small {
+  background: #f1f5f9;
+  color: #475467;
+}
+
+.btn-cancel-small:hover {
+  background: #e2e8f0;
+}
+
+.tag-add {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.tag-add-input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.btn-add-tag {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 6px;
+  background: #22c55e;
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add-tag:hover {
+  background: #16a34a;
+}
+
+.no-tags {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin: 0;
 }
 
 @media (max-width: 900px) {

@@ -19,6 +19,7 @@ const AppLayout = () => {
           <NavLink to="/images">图片库</NavLink>
           <NavLink to="/upload">上传</NavLink>
           <NavLink to="/tags">标签</NavLink>
+          <NavLink to="/slideshow">轮播</NavLink>
         </nav>
         <div className="user-info">
           <span>{user?.username}</span>

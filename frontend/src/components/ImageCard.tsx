@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import type { ImageMeta } from '../types'
+import { useSlideshowStore } from '../store/slideshowStore'
 import './ImageCard.css'
 
 interface Props {
@@ -9,10 +10,28 @@ interface Props {
 
 const ImageCard = ({ image }: Props) => {
   const thumbnailUrl = `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api/v1'}/images/${image.id}/thumbnail`
+  const addImage = useSlideshowStore((state) => state.addImage)
+  const items = useSlideshowStore((state) => state.items)
+  const isInSlideshow = items.some((item) => item.imageId === image.id)
+
+  const handleAddToSlideshow = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    addImage(image)
+  }
 
   return (
     <Link to={`/images/${image.id}`} className="image-card">
-      <img src={thumbnailUrl} alt={image.originalFilename} loading="lazy" />
+      <div className="image-card-image-wrapper">
+        <img src={thumbnailUrl} alt={image.originalFilename} loading="lazy" />
+        <button
+          className={`slideshow-add-btn ${isInSlideshow ? 'added' : ''}`}
+          onClick={handleAddToSlideshow}
+          title={isInSlideshow ? '已在轮播组中' : '添加到轮播组'}
+        >
+          {isInSlideshow ? '✓' : '+'}
+        </button>
+      </div>
       <div className="image-info">
         <h4 title={image.originalFilename}>{image.originalFilename}</h4>
         <p>{format(new Date(image.createdAt), 'yyyy-MM-dd HH:mm')}</p>

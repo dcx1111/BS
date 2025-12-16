@@ -74,3 +74,58 @@ func (h *TagHandler) Remove(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"removed": true})
 }
+
+func (h *TagHandler) UpdateColor(ctx *gin.Context) {
+	userID := ctx.GetUint("user_id")
+	tagID := parseUint(ctx.Param("id"))
+	
+	var req dto.UpdateTagColorRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	tag, err := h.tagService.UpdateColor(userID, tagID, req.Color)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, tag)
+}
+
+func (h *TagHandler) UpdateImageTag(ctx *gin.Context) {
+	userID := ctx.GetUint("user_id")
+	imageID := parseUint(ctx.Param("id"))
+	
+	var req dto.UpdateImageTagRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	if err := h.tagService.UpdateImageTag(userID, imageID, req.OldTagID, req.NewTagName); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"updated": true})
+}
+
+func (h *TagHandler) AddImageTag(ctx *gin.Context) {
+	userID := ctx.GetUint("user_id")
+	imageID := parseUint(ctx.Param("id"))
+	
+	var req dto.AddImageTagRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	if err := h.tagService.AddImageTagByName(userID, imageID, req.TagName); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"added": true})
+}

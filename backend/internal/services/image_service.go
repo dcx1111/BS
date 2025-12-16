@@ -7,12 +7,15 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	_ "image/png"  // 注册 PNG 解码器
+	_ "image/gif"   // 注册 GIF 解码器
 	"io"
 	"log"
 	"math"
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +26,9 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/lucasb-eyer/go-colorful"
 	"github.com/rwcarlsen/goexif/exif"
+	_ "golang.org/x/image/bmp"  // 注册 BMP 解码器
+	_ "golang.org/x/image/tiff" // 注册 TIFF 解码器
+	_ "golang.org/x/image/webp" // 注册 WebP 解码器
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -57,11 +63,15 @@ func (s *ImageService) Upload(userID uint, fileHeader *multipart.FileHeader, tag
 		return nil, err
 	}
 
-	imgCfg, format, err := image.DecodeConfig(bytes.NewReader(buffer.Bytes()))
+	// 先使用 image.DecodeConfig 获取格式和尺寸（需要导入相应的解码器）
+	reader := bytes.NewReader(buffer.Bytes())
+	imgCfg, format, err := image.DecodeConfig(reader)
 	if err != nil {
-		return nil, errors.New("无法解析图片")
+		return nil, errors.New("无法解析图片，支持的格式：JPEG, PNG, GIF, BMP, TIFF, WebP")
 	}
-	mimeType := fmt.Sprintf("image/%s", format)
+	
+	// 标准化 MIME 类型
+	mimeType := getMimeType(format)
 
 	filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), sanitizeFilename(fileHeader.Filename))
 	destPath := filepath.Join(s.cfg.StorageDir, "originals", filename)
@@ -72,7 +82,7 @@ func (s *ImageService) Upload(userID uint, fileHeader *multipart.FileHeader, tag
 	if err := os.WriteFile(destPath, buffer.Bytes(), 0o644); err != nil {
 		return nil, err
 	}
-
+	
 	imageModel := &models.Image{
 		UserID:           userID,
 		OriginalFilename: fileHeader.Filename,
@@ -173,6 +183,67 @@ func (s *ImageService) List(userID uint, filters map[string]string, page, pageSi
 		query = query.Where("created_at <= ?", end)
 	}
 
+	// 分辨率筛选
+	if wMinStr, ok := filters["width_min"]; ok && wMinStr != "" {
+		if wMin, err := strconv.Atoi(wMinStr); err == nil {
+			query = query.Where("width >= ?", wMin)
+		}
+	}
+	if wMaxStr, ok := filters["width_max"]; ok && wMaxStr != "" {
+		if wMax, err := strconv.Atoi(wMaxStr); err == nil {
+			query = query.Where("width <= ?", wMax)
+		}
+	}
+	if hMinStr, ok := filters["height_min"]; ok && hMinStr != "" {
+		if hMin, err := strconv.Atoi(hMinStr); err == nil {
+			query = query.Where("height >= ?", hMin)
+		}
+	}
+	if hMaxStr, ok := filters["height_max"]; ok && hMaxStr != "" {
+		if hMax, err := strconv.Atoi(hMaxStr); err == nil {
+			query = query.Where("height <= ?", hMax)
+		}
+	}
+
+	// 文件大小（字节）
+	if sizeMinStr, ok := filters["size_min"]; ok && sizeMinStr != "" {
+		if sizeMin, err := strconv.ParseInt(sizeMinStr, 10, 64); err == nil {
+			query = query.Where("file_size >= ?", sizeMin)
+		}
+	}
+	if sizeMaxStr, ok := filters["size_max"]; ok && sizeMaxStr != "" {
+		if sizeMax, err := strconv.ParseInt(sizeMaxStr, 10, 64); err == nil {
+			query = query.Where("file_size <= ?", sizeMax)
+		}
+	}
+
+	// 拍摄时间（EXIF）
+	if takenStart, ok := filters["taken_start"]; ok && takenStart != "" {
+		query = query.Joins("LEFT JOIN image_exifs ON images.id = image_exifs.image_id").Where("image_exifs.taken_at >= ?", takenStart)
+	}
+	if takenEnd, ok := filters["taken_end"]; ok && takenEnd != "" {
+		query = query.Joins("LEFT JOIN image_exifs ON images.id = image_exifs.image_id").Where("image_exifs.taken_at <= ?", takenEnd)
+	}
+
+	// 标签筛选，支持多个标签（用逗号分隔）。需全部匹配
+	if tagStr, ok := filters["tags"]; ok && strings.TrimSpace(tagStr) != "" {
+		tagNames := []string{}
+		for _, t := range strings.Split(tagStr, ",") {
+			name := strings.TrimSpace(t)
+			if name != "" {
+				tagNames = append(tagNames, name)
+			}
+		}
+		if len(tagNames) > 0 {
+			query = query.
+				Joins("JOIN image_tags ON images.id = image_tags.image_id").
+				Joins("JOIN tags ON tags.id = image_tags.tag_id AND tags.user_id = ?", userID).
+				Where("tags.name IN ?", tagNames).
+				Group("images.id").
+				Having("COUNT(DISTINCT tags.name) = ?", len(tagNames))
+		}
+	}
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -193,6 +264,78 @@ func (s *ImageService) Get(userID, imageID uint) (*models.Image, error) {
 		return nil, err
 	}
 	return &imageModel, nil
+}
+
+func (s *ImageService) Update(userID, imageID uint, fileHeader *multipart.FileHeader) (*models.Image, error) {
+	imageModel, err := s.Get(userID, imageID)
+	if err != nil {
+		return nil, err
+	}
+
+	if fileHeader.Size > s.cfg.MaxUploadSize {
+		return nil, errors.New("文件过大")
+	}
+
+	src, err := fileHeader.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer src.Close()
+
+	buffer := &bytes.Buffer{}
+	if _, err := io.Copy(buffer, src); err != nil {
+		return nil, err
+	}
+
+	// 先使用 image.DecodeConfig 获取格式和尺寸（需要导入相应的解码器）
+	reader := bytes.NewReader(buffer.Bytes())
+	imgCfg, format, err := image.DecodeConfig(reader)
+	if err != nil {
+		return nil, errors.New("无法解析图片，支持的格式：JPEG, PNG, GIF, BMP, TIFF, WebP")
+	}
+	
+	// 标准化 MIME 类型
+	mimeType := getMimeType(format)
+
+	// 删除旧文件
+	if err := os.Remove(imageModel.FilePath); err != nil && !os.IsNotExist(err) {
+		log.Printf("failed to remove old file: %v", err)
+	}
+
+	// 保存新文件
+	filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), sanitizeFilename(fileHeader.Filename))
+	destPath := filepath.Join(s.cfg.StorageDir, "originals", filename)
+	if err := os.MkdirAll(filepath.Dir(destPath), os.ModePerm); err != nil {
+		return nil, err
+	}
+
+	if err := os.WriteFile(destPath, buffer.Bytes(), 0o644); err != nil {
+		return nil, err
+	}
+	
+	// 更新数据库记录
+	imageModel.StoredFilename = filename
+	imageModel.FilePath = destPath
+	imageModel.MimeType = mimeType
+	imageModel.FileSize = fileHeader.Size
+	imageModel.Width = imgCfg.Width
+	imageModel.Height = imgCfg.Height
+
+	if err := s.db.Save(imageModel).Error; err != nil {
+		return nil, err
+	}
+
+	// 更新缩略图
+	if err := s.generateThumbnail(imageModel.ID, bytes.NewReader(buffer.Bytes())); err != nil {
+		log.Printf("failed to generate thumbnail: %v", err)
+	}
+
+	// 更新 EXIF
+	if err := s.extractAndSaveEXIF(imageModel.ID, bytes.NewReader(buffer.Bytes())); err != nil {
+		log.Printf("failed to parse EXIF: %v", err)
+	}
+
+	return imageModel, nil
 }
 
 func (s *ImageService) Delete(userID, imageID uint) error {
@@ -392,4 +535,24 @@ func adjustHue(img image.Image, degrees float64) image.Image {
 	}
 
 	return dst
+}
+
+// getMimeType 将 imaging 格式转换为标准 MIME 类型
+func getMimeType(format string) string {
+	switch format {
+	case "jpeg", "jpg":
+		return "image/jpeg"
+	case "png":
+		return "image/png"
+	case "gif":
+		return "image/gif"
+	case "bmp":
+		return "image/bmp"
+	case "tiff", "tif":
+		return "image/tiff"
+	case "webp":
+		return "image/webp"
+	default:
+		return fmt.Sprintf("image/%s", format)
+	}
 }

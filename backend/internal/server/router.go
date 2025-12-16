@@ -78,6 +78,7 @@ func (s *Server) setupRoutes() {
 	protected.GET("/images", s.imageHandler.List)
 	protected.POST("/images/upload", s.imageHandler.Upload)
 	protected.GET("/images/:id", s.imageHandler.Detail)
+	protected.PUT("/images/:id", s.imageHandler.Update)
 	protected.DELETE("/images/:id", s.imageHandler.Delete)
 	protected.POST("/images/:id/crop", s.imageHandler.Crop)
 	protected.POST("/images/:id/adjust", s.imageHandler.Adjust)
@@ -87,8 +88,11 @@ func (s *Server) setupRoutes() {
 
 	protected.POST("/images/:id/tags", s.tagHandler.Assign)
 	protected.DELETE("/images/:id/tags/:tagId", s.tagHandler.Remove)
+	protected.POST("/images/:id/tags/add", s.tagHandler.AddImageTag)
+	protected.PUT("/images/:id/tags/update", s.tagHandler.UpdateImageTag)
 	protected.GET("/tags", s.tagHandler.List)
 	protected.POST("/tags", s.tagHandler.Create)
+	protected.PUT("/tags/:id/color", s.tagHandler.UpdateColor)
 }
 
 func (s *Server) Run() error {

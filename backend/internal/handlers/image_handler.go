@@ -45,9 +45,18 @@ func (h *ImageHandler) List(ctx *gin.Context) {
 	page := parseInt(ctx.DefaultQuery("page", "1"))
 	pageSize := parseInt(ctx.DefaultQuery("pageSize", "20"))
 	filters := map[string]string{
-		"keyword": ctx.Query("keyword"),
-		"start":   ctx.Query("start_date"),
-		"end":     ctx.Query("end_date"),
+		"keyword":      ctx.Query("keyword"),
+		"start":        ctx.Query("start_date"),
+		"end":          ctx.Query("end_date"),
+		"taken_start":  ctx.Query("taken_start"),
+		"taken_end":    ctx.Query("taken_end"),
+		"width_min":    ctx.Query("width_min"),
+		"width_max":    ctx.Query("width_max"),
+		"height_min":   ctx.Query("height_min"),
+		"height_max":   ctx.Query("height_max"),
+		"size_min":     ctx.Query("size_min"),
+		"size_max":     ctx.Query("size_max"),
+		"tags":         ctx.Query("tags"),
 	}
 
 	images, total, err := h.imageService.List(userID, filters, page, pageSize)
@@ -71,6 +80,24 @@ func (h *ImageHandler) Detail(ctx *gin.Context) {
 	image, err := h.imageService.Get(userID, imageID)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"message": "图片不存在"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, image)
+}
+
+func (h *ImageHandler) Update(ctx *gin.Context) {
+	userID := ctx.GetUint("user_id")
+	imageID := parseUint(ctx.Param("id"))
+	file, err := ctx.FormFile("file")
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "请选择要上传的图片"})
+		return
+	}
+
+	image, err := h.imageService.Update(userID, imageID, file)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 

@@ -24,7 +24,20 @@ type AssignTagsRequest struct {
 
 type CreateTagRequest struct {
 	Name  string `json:"name" binding:"required,min=1,max=50"`
-	Color string `json:"color" binding:"omitempty"`
+	Color string `json:"color" binding:"required"` // 手动创建标签时必须指定颜色
+}
+
+type UpdateTagColorRequest struct {
+	Color string `json:"color" binding:"required"`
+}
+
+type UpdateImageTagRequest struct {
+	OldTagID   uint   `json:"oldTagId" binding:"required"`
+	NewTagName string `json:"newTagName" binding:"required,min=1,max=50"`
+}
+
+type AddImageTagRequest struct {
+	TagName string `json:"tagName" binding:"required,min=1,max=50"`
 }
 
 type CropRequest struct {

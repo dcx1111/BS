@@ -5,6 +5,8 @@ import ImageListPage from './pages/ImageListPage'
 import UploadPage from './pages/UploadPage'
 import ImageDetailPage from './pages/ImageDetailPage'
 import TagManagementPage from './pages/TagManagementPage'
+import SlideshowPage from './pages/SlideshowPage'
+import SlideshowEditPage from './pages/SlideshowEditPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import AppLayout from './components/AppLayout'
 import './App.css'
@@ -18,6 +20,8 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
 
         <Route element={<ProtectedRoute />}>
+          <Route path="/slideshow" element={<SlideshowPage />} />
+          <Route path="/slideshow/edit" element={<SlideshowEditPage />} />
           <Route element={<AppLayout />}>
             <Route path="/images" element={<ImageListPage />} />
             <Route path="/images/:id" element={<ImageDetailPage />} />

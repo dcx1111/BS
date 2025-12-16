@@ -25,3 +25,15 @@ export const deleteImage = async (id: string) => {
   await api.delete(`/images/${id}`)
 }
 
+export const addImageTag = async (imageId: string, tagName: string) => {
+  await api.post(`/images/${imageId}/tags/add`, { tagName })
+}
+
+export const updateImageTag = async (imageId: string, oldTagId: number, newTagName: string) => {
+  await api.put(`/images/${imageId}/tags/update`, { oldTagId, newTagName })
+}
+
+export const removeImageTag = async (imageId: string, tagId: string) => {
+  await api.delete(`/images/${imageId}/tags/${tagId}`)
+}
+
