@@ -72,6 +72,7 @@
   max-height: 600px;
   border-radius: 0;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  touch-action: none;
 }
 
 .canvas-container .loading {
@@ -201,10 +202,6 @@
 @media (max-width: 900px) {
   .editor-content {
     grid-template-columns: 1fr;
-  }
-
-  .editor-controls {
-    order: -1;
   }
 }
 

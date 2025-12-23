@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { deleteImage, fetchImageDetail, uploadImage, addImageTag, updateImageTag, removeImageTag } from '../api/images'
 import type { ImageMeta, Tag } from '../types'
+import { useSlideshowStore } from '../store/slideshowStore'
 import ImageEditor from '../components/ImageEditor'
 import './ImageDetailPage.css'
 
@@ -12,11 +13,14 @@ const ImageDetailPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [_saving, setSaving] = useState(false) // 保存状态，可用于UI反馈（当前未使用，添加下划线避免TS警告）
   const [editingTagId, setEditingTagId] = useState<number | null>(null)
   const [editingTagName, setEditingTagName] = useState('')
   const [newTagName, setNewTagName] = useState('')
   const [tagMessage, setTagMessage] = useState<string | null>(null)
+  const [showFullName, setShowFullName] = useState(false)
+  const [isNameTruncated, setIsNameTruncated] = useState(false)
+  const nameRef = useRef<HTMLHeadingElement>(null)
 
   const loadDetail = async () => {
     if (!id) return
@@ -34,12 +38,27 @@ const ImageDetailPage = () => {
 
   useEffect(() => {
     loadDetail()
+    setShowFullName(false) // 切换图片时重置展开状态
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
+  useEffect(() => {
+    if (nameRef.current && !showFullName) {
+      const element = nameRef.current
+      setIsNameTruncated(element.scrollWidth > element.clientWidth)
+    } else {
+      setIsNameTruncated(false)
+    }
+  }, [image?.originalFilename, showFullName])
+
+  const removeImageFromSlideshow = useSlideshowStore((state) => state.removeImage)
+  
   const handleDelete = async () => {
     if (!id) return
     if (!confirm('确定删除该图片吗？')) return
+    const imageId = parseInt(id, 10)
+    // 如果图片在轮播组中，先从轮播组中删除
+    removeImageFromSlideshow(imageId)
     await deleteImage(id)
     navigate('/images')
   }
@@ -122,8 +141,8 @@ const ImageDetailPage = () => {
       // 继承原图的标签
       const tagNames = image.tags?.map(tag => tag.name) || []
       
-      // 上传为新图片
-      const newImage = await uploadImage(file, tagNames)
+      // 上传为新图片，不调用AI生成标签（裁剪/调整生成的图片不应该自动生成新标签）
+      const newImage = await uploadImage(file, tagNames, false)
       setIsEditing(false)
       
       // 跳转到新图片的详情页
@@ -143,7 +162,7 @@ const ImageDetailPage = () => {
     return <div className="detail-card">{error ?? '图片不存在'}</div>
   }
 
-  const originalUrl = `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api/v1'}/images/${image.id}/original`
+  const originalUrl = `${import.meta.env.VITE_API_BASE_URL ?? '/api/v1'}/images/${image.id}/original`
 
   if (isEditing) {
     return (
@@ -158,11 +177,33 @@ const ImageDetailPage = () => {
   return (
     <div className="detail-card">
       <header>
-        <div>
-          <h2>{image.originalFilename}</h2>
+        <div className="title-block">
+          <h2 
+            ref={nameRef}
+            className={showFullName ? 'name-full' : 'name-truncated'}
+            onClick={() => {
+              if (isNameTruncated || showFullName) {
+                setShowFullName(!showFullName)
+              }
+            }}
+            style={{ cursor: (isNameTruncated || showFullName) ? 'pointer' : 'default' }}
+            title={showFullName ? '点击收起' : isNameTruncated ? '点击显示完整名称' : undefined}
+          >
+            {image.originalFilename}
+          </h2>
           <p>{new Date(image.createdAt).toLocaleString()}</p>
         </div>
         <div className="header-actions">
+          <button 
+            onClick={() => {
+              // 检查是否有保存的筛选状态，如果有则返回到筛选后的页面
+              // 由于筛选状态已保存在localStorage中，直接导航到/images即可
+              navigate('/images')
+            }} 
+            className="btn-exit"
+          >
+            退出
+          </button>
           <button onClick={handleEdit} className="btn-edit">编辑</button>
           <button onClick={handleDelete} className="btn-delete">删除</button>
         </div>

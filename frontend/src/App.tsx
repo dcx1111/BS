@@ -5,6 +5,7 @@ import ImageListPage from './pages/ImageListPage'
 import UploadPage from './pages/UploadPage'
 import ImageDetailPage from './pages/ImageDetailPage'
 import TagManagementPage from './pages/TagManagementPage'
+import MCPSearchPage from './pages/MCPSearchPage'
 import SlideshowPage from './pages/SlideshowPage'
 import SlideshowEditPage from './pages/SlideshowEditPage'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -27,6 +28,7 @@ function App() {
             <Route path="/images/:id" element={<ImageDetailPage />} />
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/tags" element={<TagManagementPage />} />
+            <Route path="/mcp" element={<MCPSearchPage />} />
           </Route>
         </Route>
       </Routes>

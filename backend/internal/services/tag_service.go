@@ -75,15 +75,15 @@ func (s *TagService) AssignByNames(userID, imageID uint, names []string) error {
 			// 如果不存在，创建新标签，颜色为空（无色）
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				tag = models.Tag{
-					UserID: userID,
-					Name:   name,
+			UserID: userID,
+			Name:   name,
 					Color:  "", // 自动创建的标签颜色为空
 				}
 				if err := s.db.Create(&tag).Error; err != nil {
 					return err
-				}
+		}
 			} else {
-				return err
+			return err
 			}
 		}
 		// 如果标签已存在，使用现有的标签（包括其颜色）
@@ -110,6 +110,32 @@ func (s *TagService) AssignBulk(userID, imageID uint, tagIDs []uint) error {
 
 func (s *TagService) Remove(imageID, tagID, userID uint) error {
 	return s.db.Where("image_id = ? AND tag_id = ?", imageID, tagID).Delete(&models.ImageTag{}).Error
+}
+
+// Delete 删除标签
+// 删除标签时，同时删除所有图片与该标签的关联（ImageTag）
+// 参数:
+//   - userID: 用户ID，确保只能删除自己的标签
+//   - tagID: 要删除的标签ID
+// 返回: 错误信息
+func (s *TagService) Delete(userID, tagID uint) error {
+	// 先验证标签是否存在且属于该用户
+	var tag models.Tag
+	if err := s.db.Where("id = ? AND user_id = ?", tagID, userID).First(&tag).Error; err != nil {
+		return err
+	}
+
+	// 删除该标签与所有图片的关联（ImageTag）
+	if err := s.db.Where("tag_id = ?", tagID).Delete(&models.ImageTag{}).Error; err != nil {
+		return err
+	}
+
+	// 删除标签本身
+	if err := s.db.Delete(&tag).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *TagService) UpdateColor(userID, tagID uint, color string) (*models.Tag, error) {

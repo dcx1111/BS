@@ -269,6 +269,115 @@ const ImageEditor = ({ imageUrl, onSave, onCancel }: ImageEditorProps) => {
     }
   }
 
+  // 获取触摸点相对于canvas的坐标
+  const getTouchPosition = (touch: React.Touch) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    return {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    }
+  }
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!cropArea) return
+
+    // 在adjust模式下，不允许拖拽裁剪框
+    if (mode === 'adjust') return
+
+    e.preventDefault() // 阻止默认滚动行为
+
+    const touch = e.touches[0]
+    const { x, y } = getTouchPosition(touch)
+
+    // 检查是否在调整大小的边缘
+    const resizeDir = getResizeDirection(x, y)
+    if (resizeDir) {
+      setIsResizing(true)
+      setResizeDirection(resizeDir)
+      setDragStart({ x, y })
+      return
+    }
+
+    // 检查是否点击在裁剪框内
+    const isInside =
+      x >= cropArea.x &&
+      x <= cropArea.x + cropArea.width &&
+      y >= cropArea.y &&
+      y <= cropArea.y + cropArea.height
+
+    if (isInside) {
+      setIsDragging(true)
+      setDragStart({ x, y })
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!cropArea) return
+
+    e.preventDefault() // 阻止默认滚动行为
+
+    const touch = e.touches[0]
+    const { x, y } = getTouchPosition(touch)
+
+    // 在adjust模式下，不允许拖拽裁剪框
+    if (mode === 'adjust') {
+      return
+    }
+
+    // 在crop模式下，允许拖拽和调整大小
+    if (isResizing && resizeDirection) {
+      const dx = x - dragStart.x
+      const dy = y - dragStart.y
+
+      let newCrop = { ...cropArea }
+
+      if (resizeDirection.includes('n')) {
+        const newY = Math.max(0, cropArea.y + dy)
+        const newHeight = cropArea.height - (newY - cropArea.y)
+        if (newHeight >= 20) {
+          newCrop.y = newY
+          newCrop.height = newHeight
+        }
+      }
+      if (resizeDirection.includes('s')) {
+        newCrop.height = Math.max(20, Math.min(cropArea.height + dy, displaySize.height - cropArea.y))
+      }
+      if (resizeDirection.includes('w')) {
+        const newX = Math.max(0, cropArea.x + dx)
+        const newWidth = cropArea.width - (newX - cropArea.x)
+        if (newWidth >= 20) {
+          newCrop.x = newX
+          newCrop.width = newWidth
+        }
+      }
+      if (resizeDirection.includes('e')) {
+        newCrop.width = Math.max(20, Math.min(cropArea.width + dx, displaySize.width - cropArea.x))
+      }
+
+      setCropArea(newCrop)
+      setDragStart({ x, y })
+    } else if (isDragging) {
+      const dx = x - dragStart.x
+      const dy = y - dragStart.y
+
+      setCropArea({
+        x: Math.max(0, Math.min(cropArea.x + dx, displaySize.width - cropArea.width)),
+        y: Math.max(0, Math.min(cropArea.y + dy, displaySize.height - cropArea.height)),
+        width: cropArea.width,
+        height: cropArea.height,
+      })
+      setDragStart({ x, y })
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault() // 阻止默认滚动行为
+    setIsDragging(false)
+    setIsResizing(false)
+    setResizeDirection('')
+  }
+
   const handleSave = async () => {
     if (!imageRef.current) return
 
@@ -376,6 +485,10 @@ const ImageEditor = ({ imageUrl, onSave, onCancel }: ImageEditorProps) => {
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              style={{ touchAction: 'none' }}
             />
           ) : (
             <div className="loading">加载中...</div>

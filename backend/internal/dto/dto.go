@@ -53,3 +53,14 @@ type AdjustRequest struct {
 	Saturation int `json:"saturation" binding:"gte=-100,lte=100"`
 	Hue        int `json:"hue" binding:"gte=-180,lte=180"`
 }
+
+type ImportVerifyRequest struct {
+	Username string `json:"username" binding:"required"` // 用户名或邮箱
+	Password string `json:"password" binding:"required"`
+}
+
+type ImportRequest struct {
+	Username string `json:"username" binding:"required"` // 用户名或邮箱
+	Password string `json:"password" binding:"required"`
+	ImageIDs []uint `json:"imageIds" binding:"required,min=1"` // 要导入的图片ID列表
+}

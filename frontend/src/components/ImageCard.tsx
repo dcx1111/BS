@@ -9,15 +9,20 @@ interface Props {
 }
 
 const ImageCard = ({ image }: Props) => {
-  const thumbnailUrl = `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api/v1'}/images/${image.id}/thumbnail`
+  const thumbnailUrl = `${import.meta.env.VITE_API_BASE_URL ?? '/api/v1'}/images/${image.id}/thumbnail`
   const addImage = useSlideshowStore((state) => state.addImage)
+  const removeImage = useSlideshowStore((state) => state.removeImage)
   const items = useSlideshowStore((state) => state.items)
   const isInSlideshow = items.some((item) => item.imageId === image.id)
 
   const handleAddToSlideshow = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    addImage(image)
+    if (isInSlideshow) {
+      removeImage(image.id)
+    } else {
+      addImage(image)
+    }
   }
 
   return (
@@ -27,7 +32,7 @@ const ImageCard = ({ image }: Props) => {
         <button
           className={`slideshow-add-btn ${isInSlideshow ? 'added' : ''}`}
           onClick={handleAddToSlideshow}
-          title={isInSlideshow ? '已在轮播组中' : '添加到轮播组'}
+          title={isInSlideshow ? '点击移出轮播组' : '添加到轮播组'}
         >
           {isInSlideshow ? '✓' : '+'}
         </button>

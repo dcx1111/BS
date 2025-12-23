@@ -129,3 +129,18 @@ func (h *TagHandler) AddImageTag(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"added": true})
 }
+
+// Delete 删除标签
+// 删除标签时，同时删除所有图片与该标签的关联
+// 路由: DELETE /api/v1/tags/:id
+func (h *TagHandler) Delete(ctx *gin.Context) {
+	userID := ctx.GetUint("user_id")
+	tagID := parseUint(ctx.Param("id"))
+
+	if err := h.tagService.Delete(userID, tagID); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"deleted": true})
+}

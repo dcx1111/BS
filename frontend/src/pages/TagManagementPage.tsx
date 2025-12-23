@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createTag, fetchTags, updateTagColor } from '../api/tags'
+import { createTag, fetchTags, updateTagColor, deleteTag } from '../api/tags'
 import type { Tag } from '../types'
 import './TagManagementPage.css'
 
@@ -13,7 +13,11 @@ const TagManagementPage = () => {
 
   const loadTags = async () => {
     const data = await fetchTags()
-    setTags(data)
+    // 按标签名称字母序排列（不区分大小写）
+    const sortedTags = [...data].sort((a, b) => 
+      a.name.toLowerCase().localeCompare(b.name.toLowerCase(), 'zh-CN')
+    )
+    setTags(sortedTags)
   }
 
   useEffect(() => {
@@ -58,6 +62,19 @@ const TagManagementPage = () => {
     setEditingColor('')
   }
 
+  const handleDelete = async (tagId: number) => {
+    if (!window.confirm('确定要删除这个标签吗？删除后，所有图片的该标签关联也会被删除。')) {
+      return
+    }
+    try {
+      await deleteTag(tagId)
+      setMessage('删除成功')
+      loadTags()
+    } catch (err: any) {
+      setMessage(err.response?.data?.message ?? '删除失败')
+    }
+  }
+
   return (
     <div className="tag-page">
       <form className="tag-form" onSubmit={handleSubmit}>
@@ -97,9 +114,14 @@ const TagManagementPage = () => {
                   {tag.name}
                 </span>
                 {!tag.color && <span className="no-color-badge">无色</span>}
-                <button onClick={() => handleStartEdit(tag)} className="btn-edit">
-                  编辑颜色
-                </button>
+                <div className="tag-actions">
+                  <button onClick={() => handleStartEdit(tag)} className="btn-edit">
+                    编辑颜色
+                  </button>
+                  <button onClick={() => handleDelete(tag.id)} className="btn-delete">
+                    删除
+                  </button>
+                </div>
               </div>
             )}
           </div>

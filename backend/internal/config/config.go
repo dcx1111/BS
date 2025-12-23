@@ -20,6 +20,11 @@ type Config struct {
 	ThumbnailHeight int
 	MaxUploadSize   int64
 	CORSOrigins     []string
+	// AI相关配置（使用智谱AI GLM-4 Vision，国内可用）
+	AIApiKey        string  // 智谱AI API密钥，从 https://open.bigmodel.cn/ 获取
+	AIApiURL        string  // 智谱AI API的URL
+	AIModel         string  // 使用的AI模型名称，默认为glm-4v（支持图片分析）
+	AIEnabled       bool    // 是否启用AI功能
 }
 
 func Load() Config {
@@ -36,6 +41,11 @@ func Load() Config {
 		ThumbnailHeight: getEnvAsInt("THUMBNAIL_HEIGHT", 300),
 		MaxUploadSize:   getEnvAsInt64("MAX_UPLOAD_SIZE", 10*1024*1024),
 		CORSOrigins:     getEnvAsSlice("CORS_ALLOWED_ORIGINS", []string{"http://localhost:5173"}),
+		// AI配置，使用智谱AI GLM-4 Vision（国内可用）
+		AIApiKey:        getEnv("AI_API_KEY", "990a23ed91bb4c18bff6feb63df0dea2.2y7qkV5jR2ceAg1f"),
+		AIApiURL:        getEnv("AI_API_URL", "https://open.bigmodel.cn/api/paas/v4/chat/completions"),
+		AIModel:         getEnv("AI_MODEL", "glm-4v"),
+		AIEnabled:       getEnvAsBool("AI_ENABLED", true),  // 默认不启用，需要显式设置
 	}
 }
 
@@ -62,6 +72,16 @@ func getEnvAsInt64(key string, fallback int64) int64 {
 			return parsed
 		}
 		log.Printf("invalid value for %s, using fallback %d", key, fallback)
+	}
+	return fallback
+}
+
+func getEnvAsBool(key string, fallback bool) bool {
+	if value, ok := os.LookupEnv(key); ok {
+		if parsed, err := strconv.ParseBool(value); err == nil {
+			return parsed
+		}
+		log.Printf("invalid value for %s, using fallback %v", key, fallback)
 	}
 	return fallback
 }

@@ -21,19 +21,22 @@ type Server struct {
 	authHandler  *handlers.AuthHandler
 	imageHandler *handlers.ImageHandler
 	tagHandler   *handlers.TagHandler
+	mcpHandler   *handlers.MCPHandler
 }
 
 func New(db *gorm.DB, cfg config.Config) *Server {
 	tagService := services.NewTagService(db)
-	imageService := services.NewImageService(db, cfg, tagService)
+	aiService := services.NewAIService(cfg)
+	imageService := services.NewImageService(db, cfg, tagService, aiService)
 	authService := services.NewAuthService(db, cfg.JWTSecret)
 
 	s := &Server{
 		cfg:          cfg,
 		engine:       gin.New(),
 		authHandler:  handlers.NewAuthHandler(authService),
-		imageHandler: handlers.NewImageHandler(imageService, tagService),
+		imageHandler: handlers.NewImageHandler(imageService, tagService, authService),
 		tagHandler:   handlers.NewTagHandler(tagService),
+		mcpHandler:   handlers.NewMCPHandler(imageService, aiService, tagService),
 	}
 
 	s.setupMiddleware()
@@ -47,19 +50,15 @@ func (s *Server) setupMiddleware() {
 	s.engine.Use(gin.Recovery())
 
 	corsCfg := cors.Config{
-		AllowOrigins:     s.cfg.CORSOrigins,
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Authorization", "Content-Type", "Content-Length", "X-Requested-With", "Accept", "Origin"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: allowCredentials(s.cfg.CORSOrigins),
+		AllowOrigins:     []string{"*"},  // 允许所有来源
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"},
+		AllowHeaders:     []string{"Authorization", "Content-Type", "Content-Length", "X-Requested-With", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"},
+		ExposeHeaders:    []string{"Content-Length", "Content-Type", "Authorization"},
+		AllowCredentials: false,  // 当AllowOrigins为"*"时，必须设置为false
 		MaxAge:           12 * time.Hour,
 	}
 
 	s.engine.Use(cors.New(corsCfg))
-}
-
-func allowCredentials(origins []string) bool {
-	return !(len(origins) == 1 && origins[0] == "*")
 }
 
 func (s *Server) setupRoutes() {
@@ -82,6 +81,8 @@ func (s *Server) setupRoutes() {
 	protected.DELETE("/images/:id", s.imageHandler.Delete)
 	protected.POST("/images/:id/crop", s.imageHandler.Crop)
 	protected.POST("/images/:id/adjust", s.imageHandler.Adjust)
+	protected.POST("/images/import/verify", s.imageHandler.ImportVerify)
+	protected.POST("/images/import", s.imageHandler.Import)
 
 	api.GET("/images/:id/thumbnail", s.imageHandler.Thumbnail)
 	api.GET("/images/:id/original", s.imageHandler.Original)
@@ -93,6 +94,10 @@ func (s *Server) setupRoutes() {
 	protected.GET("/tags", s.tagHandler.List)
 	protected.POST("/tags", s.tagHandler.Create)
 	protected.PUT("/tags/:id/color", s.tagHandler.UpdateColor)
+	protected.DELETE("/tags/:id", s.tagHandler.Delete)
+
+	// MCP对话式图片检索接口
+	protected.POST("/mcp/search", s.mcpHandler.Search)
 }
 
 func (s *Server) Run() error {

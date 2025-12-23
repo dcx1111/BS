@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -13,12 +14,14 @@ import (
 type ImageHandler struct {
 	imageService *services.ImageService
 	tagService   *services.TagService
+	authService  *services.AuthService
 }
 
-func NewImageHandler(imageService *services.ImageService, tagService *services.TagService) *ImageHandler {
+func NewImageHandler(imageService *services.ImageService, tagService *services.TagService, authService *services.AuthService) *ImageHandler {
 	return &ImageHandler{
 		imageService: imageService,
 		tagService:   tagService,
+		authService:  authService,
 	}
 }
 
@@ -31,7 +34,12 @@ func (h *ImageHandler) Upload(ctx *gin.Context) {
 	}
 
 	tags := ctx.PostFormArray("tags[]")
-	image, err := h.imageService.Upload(userID, file, tags)
+	// 解析是否使用AI的标志，默认为true（保持向后兼容）
+	useAI := true
+	if useAIStr := ctx.PostForm("use_ai"); useAIStr != "" {
+		useAI = useAIStr == "true"
+	}
+	image, err := h.imageService.Upload(userID, file, tags, useAI)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -57,6 +65,8 @@ func (h *ImageHandler) List(ctx *gin.Context) {
 		"size_min":     ctx.Query("size_min"),
 		"size_max":     ctx.Query("size_max"),
 		"tags":         ctx.Query("tags"),
+		"keyword_mode": ctx.Query("keyword_mode"),  // "and" 或 "or"，表示关键词和其他条件的关系
+		"tag_mode":     ctx.Query("tag_mode"),      // "and" 或 "or"，表示标签之间的关系
 	}
 
 	images, total, err := h.imageService.List(userID, filters, page, pageSize)
@@ -176,6 +186,77 @@ func (h *ImageHandler) Adjust(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, newImage)
+}
+
+// ImportVerify 验证其他用户的凭据并获取其图片列表
+func (h *ImageHandler) ImportVerify(ctx *gin.Context) {
+	var req dto.ImportVerifyRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	// 验证用户凭据
+	loginReq := dto.LoginRequest{
+		Username: req.Username,
+		Password: req.Password,
+	}
+	_, user, err := h.authService.Login(loginReq)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"message": "用户名或密码错误"})
+		return
+	}
+
+	// 获取该用户的所有图片
+	images, err := h.imageService.GetOtherUserImages(user.ID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "获取图片列表失败"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"images": images,
+		"userId": user.ID,
+	})
+}
+
+// Import 导入其他用户的图片
+func (h *ImageHandler) Import(ctx *gin.Context) {
+	currentUserID := ctx.GetUint("user_id")
+	var req dto.ImportRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	// 验证源用户凭据
+	loginReq := dto.LoginRequest{
+		Username: req.Username,
+		Password: req.Password,
+	}
+	_, sourceUser, err := h.authService.Login(loginReq)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"message": "用户名或密码错误"})
+		return
+	}
+
+	// 防止用户导入自己的图片
+	if sourceUser.ID == currentUserID {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "不能导入自己的图片"})
+		return
+	}
+
+	// 执行导入
+	importedImages, err := h.imageService.ImportImages(currentUserID, sourceUser.ID, req.ImageIDs, h.tagService)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message":        fmt.Sprintf("成功导入 %d 张图片", len(importedImages)),
+		"importedImages": importedImages,
+	})
 }
 
 func parseInt(value string) int {

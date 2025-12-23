@@ -93,7 +93,7 @@ const SlideshowEditPage = () => {
       <div className="edit-content">
         <div className="items-list">
           {localItems.map((item, index) => {
-            const thumbnailUrl = `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api/v1'}/images/${item.imageId}/thumbnail`
+            const thumbnailUrl = `${import.meta.env.VITE_API_BASE_URL ?? '/api/v1'}/images/${item.imageId}/thumbnail`
             return (
               <div key={item.imageId} className="edit-item">
                 <div className="item-thumbnail">

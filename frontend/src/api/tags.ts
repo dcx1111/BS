@@ -16,3 +16,8 @@ export const updateTagColor = async (tagId: number, color: string) => {
   return data
 }
 
+export const deleteTag = async (tagId: number) => {
+  const { data } = await api.delete(`/tags/${tagId}`)
+  return data
+}
+
